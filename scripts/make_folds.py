@@ -39,7 +39,7 @@ topics["topic_description"].fillna("No topic description", inplace=True)
 contents["content_title"].fillna("No content title", inplace=True)
 contents["content_description"].fillna("No content description", inplace=True)
 contents["content_text"].fillna("No content text", inplace=True)
-contents["content_text"] = [[x[:300]] for x in contents["content_text"]]
+contents["content_text"] = [x[:300] for x in contents["content_text"]]
 
 correlations["content_id"] = [x.split() for x in correlations["content_ids"]]
 exploded_corr = correlations.explode("content_id")

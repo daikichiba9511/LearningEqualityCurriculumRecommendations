@@ -13,8 +13,20 @@ seaborn = "^0.12.2"
 polars = "^0.16.9"
 networkx = "^3.0"
 scikit-learn = "^1.2.1"
+transformers = "^4.26.1"
+torch = { url = "https://download.pytorch.org/whl/cu116/torch-1.13.1%2Bcu116-cp38-cp38-linux_x86_64.whl" }
+# cudf-cu11 = { url = "https://pypi.nvidia.com/cudf-cu11/cudf_cu11-23.2.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl" }
+# cuml-cu11 = { url = "https://pypi.nvidia.com/cuml-cu11/cuml_cu11-23.2.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl" }
+# cupy-cuda11x = "*"
 pyarrow = "^11.0.0"
 fastparquet = "^2023.2.0"
+accelerate = "^0.16.0"
+datasets = "^2.10.1"
+evaluate = "^0.4.0"
+fire = "^0.5.0"
+wandb = "^0.13.10"
+python-dotenv = "^1.0.0"
+sentence-transformers = "^2.2.2"
 
 [tool.poetry.group.dev.dependencies]
 black = "^22.3.0"
@@ -23,6 +35,7 @@ mypy = "^0.942"
 pyproject-flake8 = "^5.0.4.post1"
 autoflake8 = "^0.4.0"
 kaggle = "^1.5.12"
+jupyterlab = "^3.6.1"
 
 
 [build-system]
