@@ -635,11 +635,12 @@ def inference(test: pd.DataFrame, cfg) -> pd.DataFrame:
     # Use threshold
     test["probs"] = prediction
     test["predictions"] = np.where(prediction > cfg.threshold, 1, 0)
-    test = test.merge(test.groupby("topics_ids", as_index=False)["probs"].max(), on="topics_ids", suffixes=["", "_max"])
+    # test = test.merge(test.groupby("topics_ids", as_index=False)["probs"].max(), on="topics_ids", suffixes=["", "_max"])
     # print(test.head(30))
     # test = test[test["has_content"]]
 
-    test1 = test[(test["predictions"] == 1) & (test["topic_language"] == test["content_language"])]
+    # test1 = test[(test["predictions"] == 1) & (test["topic_language"] == test["content_language"])]
+    test1 = test[test["predictions"] == 1]
     test1 = test1.groupby(["topics_ids"])["content_ids"].unique().reset_index()
     test1["content_ids"] = test1["content_ids"].apply(lambda x: " ".join(x))
     test1.columns = ["topic_id", "content_ids"]
