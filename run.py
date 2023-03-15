@@ -57,5 +57,5 @@ if CFG.use_wandb:
 for fold in range(CFG.folds):
 
     print(f" Starting fold {fold} ".center(30, "*"))
-    subprocess.run(["accelerate", "launch", "scripts/train.py", "--fold", f"{fold}"])
+    subprocess.run(["accelerate", "launch", "scripts/uns_train.py", "--fold", f"{fold}"])
     print("\n\n")

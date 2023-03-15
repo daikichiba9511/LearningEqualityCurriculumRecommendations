@@ -21,12 +21,46 @@ from transformers import (
     set_seed,
 )
 
-from src.cfg import CFG
+# from src.cfg import CFG
 from src.collator import MNRCollator
 from src.constants import OUTPUT_DIR
 from src.metric import RecallAtK
 from src.model import MultipleNegativesRankingLoss, SBert
+from src.train import FGM
 from src.utils import compute_metrics
+
+
+class CFG:
+    model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
+    batch_size: int = 384
+    output_dir: Path = OUTPUT_DIR / ("exp003-" + model_name.split("/")[-1] + "-MNR-tuned")
+
+    folds: int = 4
+    lr: float = 5e-5
+    wd: float = 0.01
+    warmup_ratio: float = 0.1
+    epochs: int = 8
+    evals_per_epoch: int = 2
+    num_devices = torch.cuda.device_count()
+    scheduler_type: str = "cosine"
+    mixed_precision: str = "fp16"
+
+    topic_cols = ["title", "description", "parent_description", "children_description"]
+    content_cols = ["title", "description", "text"]
+    max_length = 128
+    num_proc = 24
+    grad_accum = 2
+    max_grad_norm = 1000
+    attack = True
+
+    tokenized_ds_name = str(OUTPUT_DIR / "tokenized.pqt")
+    use_wandb = True
+    debug = False
+    seed = 18
+    log_per_epoch = 10
+    use_amp = True
+
+    metric_to_track = "recall@100"
 
 
 def get_pos_and_tt_ids(input_ids, device):
@@ -46,7 +80,8 @@ def get_pos_and_tt_ids(input_ids, device):
 
 def main(fold):
 
-    output_dir = Path(f"{CFG.output_dir}-fold{fold}")
+    output_path = Path(f"{CFG.output_dir.stem}-fold{fold}")
+    output_dir = CFG.output_dir.parent / output_path
     output_dir.mkdir(exist_ok=True, parents=True)
 
     tokenizer = AutoTokenizer.from_pretrained(CFG.model_name)
@@ -55,7 +90,7 @@ def main(fold):
         fold_idxs = json.load(fp)
 
     tokenized_ds = load_dataset("parquet", data_files=CFG.tokenized_ds_name, split="train")
-    combined = pd.read_parquet(OUTPUT_DIR / "combined2.pqt")
+    combined = pd.read_parquet(OUTPUT_DIR / "combined2_with_pc_desc.pqt")
 
     set_seed(CFG.seed)
 
@@ -184,6 +219,11 @@ def main(fold):
             step=global_step,
         )
 
+    # scaler = torch.cuda.amp.GradScaler(enabled=CFG.use_amp)
+
+    emb_name, para = next(model.named_parameters())
+    print(f"{emb_name = }")
+    fgm = FGM(model=model, emb_name=emb_name, epsilon=1.0)
     for epoch in range(CFG.epochs):
         model.train()
 
@@ -203,14 +243,31 @@ def main(fold):
                 batch["attention_mask_b"],
                 **get_pos_and_tt_ids(batch["input_ids_b"], accelerator.device),
             ).pooled_embeddings
-
             loss = loss_fct(embeddings_a, embeddings_b)
-
             accelerator.backward(loss)
-            optimizer.step()
-            lr_scheduler.step()
-            progress_bar.update(1)
-            global_step += 1
+
+            if CFG.attack:
+                fgm.attack()
+                embeddings_a = model(
+                    batch["input_ids_a"],
+                    batch["attention_mask_a"],
+                    **get_pos_and_tt_ids(batch["input_ids_a"], accelerator.device),
+                ).pooled_embeddings
+                embeddings_b = model(
+                    batch["input_ids_b"],
+                    batch["attention_mask_b"],
+                    **get_pos_and_tt_ids(batch["input_ids_b"], accelerator.device),
+                ).pooled_embeddings
+                loss = loss_fct(embeddings_a, embeddings_b)
+                accelerator.backward(loss)
+                fgm.restore()
+
+            grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), CFG.max_grad_norm)
+            if (step + 1) % CFG.grad_accum:
+                optimizer.step()
+                lr_scheduler.step()
+                progress_bar.update(1)
+                global_step += 1
 
             if CFG.use_wandb:
                 train_loss += loss
@@ -240,10 +297,14 @@ def main(fold):
                 if metric_score > best_score:
                     accelerator.print(f"New best {CFG.metric_to_track}: {round(metric_score, 4)} \nSaving model")
                     state_dict = accelerator.get_state_dict(model)
-                    accelerator.save(state_dict, str(output_dir / "model_state_dict.pt"))
+                    accelerator.save(state_dict, str(output_dir / "best_model_state_dict.pt"))
                     model
 
                     best_score = metric_score
+
+                # save last model
+                state_dict = accelerator.get_state_dict(model)
+                accelerator.save(state_dict, str(output_dir / "model_state_dict.pt"))
 
                 model.train()
 

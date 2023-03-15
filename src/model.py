@@ -17,6 +17,7 @@ class SBertOutput(ModelOutput):
 
     loss: torch.Tensor | None = None
     pooled_embeddings: torch.Tensor | None = None
+    output: torch.Tensor | None = None
 
 
 class SBert(torch.nn.Module):
@@ -44,6 +45,7 @@ class SBert(torch.nn.Module):
         return SBertOutput(
             loss=None,  # loss is calculated in `compute_loss`, but needed here as a placeholder
             pooled_embeddings=self.mean_pooling(outputs[0], attention_mask),
+            output=outputs,
         )
 
 

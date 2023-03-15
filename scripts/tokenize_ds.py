@@ -21,6 +21,9 @@ def main(show_progress_bars=True):
         """
         sep = tokenizer.sep_token
 
+        # print("Batch: ", type(batch), batch.keys_to_format)
+        # raise ValueError(f"Batch: {topic_cols}")
+
         topic_texts = [sep.join(cols) for cols in zip(*[batch[c] for c in topic_cols])]
         content_texts = [sep.join(cols) for cols in zip(*[batch[c] for c in content_cols])]
 
@@ -43,13 +46,19 @@ def main(show_progress_bars=True):
         if debug:
             ds = ds.shuffle().select(range(5000))
 
+        topic_cols = [f"topic_{c}" for c in CFG.topic_cols]
+        content_cols = [f"content_{c}" for c in CFG.content_cols]
+
+        print(topic_cols)
+        print(content_cols)
+
         tokenized_ds = ds.map(
             tokenize,
             batched=True,
             fn_kwargs=dict(
                 tokenizer=tokenizer,
-                topic_cols=[f"topic_{c}" for c in CFG.topic_cols],
-                content_cols=[f"content_{c}" for c in CFG.content_cols],
+                topic_cols=topic_cols,
+                content_cols=content_cols,
                 max_length=max_length,
             ),
             remove_columns=ds.column_names,
@@ -59,14 +68,11 @@ def main(show_progress_bars=True):
         return tokenized_ds
 
     tokenizer = AutoTokenizer.from_pretrained(CFG.model_name)
-    combined = load_dataset("parquet", data_files=f"{OUTPUT_DIR}/combined2.pqt", split="train")
-    print(
-        combined.to_pandas()[
-            ["topic_title", "topic_description", "content_title", "content_description", "content_text"]
-        ]
-    )
+    combined = load_dataset("parquet", data_files=f"{OUTPUT_DIR}/combined2_with_pc_desc.pqt", split="train")
+    print(combined.to_pandas())
     tokenized_ds = get_tokenized_ds(combined, tokenizer, max_length=CFG.max_length, debug=CFG.debug)
     tokenized_ds.to_parquet(CFG.tokenized_ds_name)
+    print(tokenized_ds)
 
 
 if __name__ == "__main__":

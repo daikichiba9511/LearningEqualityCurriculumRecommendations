@@ -4,7 +4,7 @@ import pandas as pd
 
 from src.constants import OUTPUT_DIR
 
-combined = pd.read_parquet(OUTPUT_DIR / "combined1.pqt")
+combined = pd.read_parquet(OUTPUT_DIR / "combined_adding_pc_desc.pqt")
 groups = combined.groupby("content_id")["fold"].agg(list)
 
 print(f"Before fixing folds: \n {groups.head()}")
@@ -24,5 +24,7 @@ fold_indices = {int(fold): combined[combined["fold"] == fold].index.to_list() fo
 with (OUTPUT_DIR / "training_idx.json").open("w") as fp:
     json.dump(fold_indices, fp)
 
-combined.to_parquet(OUTPUT_DIR / "combined2.pqt", index=False)
+combined.to_parquet(OUTPUT_DIR / "combined2_with_pc_desc.pqt", index=False)
 print(combined["fold"].value_counts())
+print(combined)
+print(combined.columns)
